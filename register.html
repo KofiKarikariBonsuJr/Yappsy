@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yappsy | Register</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="navbar">
@@ -20,25 +20,53 @@
     <div class="form-card">
       <h1>Create Account</h1>
       <p>Join Yappsy and start chatting.</p>
+<form id="registerForm">
+  <label for="username">Username</label>
+  <input type="text" id="username" placeholder="Choose a username" />
 
-      <form>
-        <label for="fullname">Full Name</label>
-        <input type="text" id="fullname" placeholder="Enter your full name" />
+  <label for="email">Email</label>
+  <input type="email" id="email" placeholder="Enter your email" />
 
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="Choose a username" />
+  <label for="password">Password</label>
+  <input type="password" id="password" placeholder="Create a password" />
 
-        <label for="email">Email</label>
-        <input type="email" id="email" placeholder="Enter your email" />
+  <button type="submit" class="btn primary full">Register</button>
+</form>
 
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="Create a password" />
+<p id="message"></p>
 
-        <label for="confirm-password">Confirm Password</label>
-        <input type="password" id="confirm-password" placeholder="Confirm your password" />
+<script>
+document.getElementById("registerForm").addEventListener("submit", async function(event) {
+  event.preventDefault();
 
-        <button type="submit" class="btn primary full">Register</button>
-      </form>
+  const data = {
+    username: document.getElementById("username").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    password: document.getElementById("password").value
+  };
+
+  const message = document.getElementById("message");
+
+  try {
+    const response = await fetch("http://192.168.244.133:3000/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    message.textContent = result.message;
+
+    if (response.ok) {
+      window.location.href = "login.html";
+    }
+  } catch (error) {
+    message.textContent = "Could not connect to backend.";
+  }
+});
+</script>
 
       <p class="form-footer">
         Already have an account?
