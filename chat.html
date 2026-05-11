@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Yappsy | Chat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="logo">Yappsy</div>
+    <nav>
+      <a href="home.html">Home</a>
+      <a href="chat.html">Chat</a>
+      <a href="#" id="logoutLink">Logout</a>
+    </nav>
+  </header>
+
+  <main class="mock-chat">
+    <div class="chat-sidebar">
+      <h3>Find Users</h3>
+      <input id="userSearch" type="text" placeholder="Search username">
+      <button onclick="searchUsers()">Search</button>
+      <div id="searchResults"></div>
+
+      <h3>Friends</h3>
+      <ul id="friendsList"></ul>
+    </div>
+
+    <div class="chat-window">
+      <div class="chat-header" id="chatHeader">Select a friend</div>
+
+      <div class="messages" id="messages"></div>
+
+      <div class="message-box">
+        <input id="messageInput" type="text" placeholder="Get yapping...">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+
+      <div class="message-box">
+        <input id="gifSearch" type="text" placeholder="Search GIFs...">
+        <button onclick="searchGifs()">GIF</button>
+      </div>
+
+      <div id="gifResults"></div>
+    </div>
+  </main>
+
+<script>
+const BACKEND_URL = "http://192.168.48.131:3000";
+const username = localStorage.getItem("username");
+let currentFriend = null;
+
+if (!username) {
+  window.location.href = "login.html";
+}
+
+document.getElementById("logoutLink").addEventListener("click", () => {
+  localStorage.removeItem("username");
+  window.location.href = "login.html";
+});
+
+async function searchUsers() {
+  const q = document.getElementById("userSearch").value;
+
+  const res = await fetch(`${BACKEND_URL}/users/search?q=${encodeURIComponent(q)}`);
+  const users = await res.json();
+
+  const results = document.getElementById("searchResults");
+  results.innerHTML = "";
+
+  users.forEach(user => {
+    if (user.username !== username) {
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <p>${user.username}</p>
+        <button onclick="addFriend('${user.username}')">Add Friend</button>
+      `;
+      results.appendChild(div);
+    }
+  });
+}
+
+async function addFriend(friendUsername) {
+  const res = await fetch(`${BACKEND_URL}/friends/add`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ username, friendUsername })
+  });
+
+  const result = await res.json();
+  alert(result.message);
+  loadFriends();
+}
+
+async function loadFriends() {
+  const res = await fetch(`${BACKEND_URL}/friends/${username}`);
+  const friends = await res.json();
+
+  const list = document.getElementById("friendsList");
+  list.innerHTML = "";
+
+  friends.forEach(friend => {
+    const li = document.createElement("li");
+    li.textContent = friend;
+    li.onclick = () => selectFriend(friend);
+    list.appendChild(li);
+  });
+}
+
+async function selectFriend(friend) {
+  currentFriend = friend;
+  document.getElementById("chatHeader").textContent = `Chat with ${friend}`;
+  loadMessages();
+}
+
+async function loadMessages() {
+  if (!currentFriend) return;
+
+  const res = await fetch(`${BACKEND_URL}/messages/${username}/${currentFriend}`);
+  const messages = await res.json();
+
+  const box = document.getElementById("messages");
+  box.innerHTML = "";
+
+  messages.forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "message";
+
+    if (msg.gifUrl) {
+      div.innerHTML = `<strong>${msg.sender}:</strong><br><img src="${msg.gifUrl}" width="200">`;
+    } else {
+      div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+    }
+
+    box.appendChild(div);
+  });
+}
+
+async function sendMessage() {
+  if (!currentFriend) {
+    alert("Select a friend first");
+    return;
+  }
+
+  const text = document.getElementById("messageInput").value;
+
+  await fetch(`${BACKEND_URL}/messages/send`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      sender: username,
+      receiver: currentFriend,
+      text
+    })
+  });
+
+  document.getElementById("messageInput").value = "";
+  loadMessages();
+}async function loadMessages() {
+  if (!currentFriend) return;
+
+  console.log("Loading messages between:", username, currentFriend);
+
+  try {
+    const res = await fetch(
+      `${BACKEND_URL}/messages/${encodeURIComponent(username)}/${encodeURIComponent(currentFriend)}`
+    );
+
+    console.log("Load messages status:", res.status);
+
+    const messages = await res.json();
+    console.log("Messages returned:", messages);
+
+    const box = document.getElementById("messages");
+    box.innerHTML = "";
+
+    if (!Array.isArray(messages)) {
+      box.innerHTML = `<div class="message">Error loading messages.</div>`;
+      return;
+    }
+
+    messages.forEach(msg => {
+      const div = document.createElement("div");
+      div.className = "message";
+
+      if (msg.gifUrl) {
+        div.innerHTML = `<strong>${msg.sender}:</strong><br><img src="${msg.gifUrl}" width="200">`;
+      } else {
+        div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+      }
+
+      box.appendChild(div);
+    });
+  } catch (error) {
+    console.error("Load messages failed:", error);
+  }
+}
+
+async function sendMessage() {
+  if (!currentFriend) {
+    alert("Select a friend first");
+    return;
+  }
+
+  const text = document.getElementById("messageInput").value.trim();
+
+  if (!text) {
+    alert("Message cannot be empty");
+    return;
+  }
+
+  console.log("Sending message:", {
+    sender: username,
+    receiver: currentFriend,
+    text
+  });
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/messages/send`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        sender: username,
+        receiver: currentFriend,
+        text
+      })
+    });
+
+    console.log("Send message status:", res.status);
+
+    const result = await res.json();
+    console.log("Send result:", result);
+
+    document.getElementById("messageInput").value = "";
+    loadMessages();
+  } catch (error) {
+    console.error("Send message failed:", error);
+  }
+}
+
+async function searchGifs() {
+  const q = document.getElementById("gifSearch").value;
+
+  const res = await fetch(`${BACKEND_URL}/gifs/search?q=${encodeURIComponent(q)}`);
+  const gifs = await res.json();
+
+  const results = document.getElementById("gifResults");
+  results.innerHTML = "";
+
+  gifs.forEach(gif => {
+    const img = document.createElement("img");
+    img.src = gif.url;
+    img.width = 150;
+    img.style.cursor = "pointer";
+
+    img.onclick = async () => {
+      if (!currentFriend) {
+        alert("Select a friend first");
+        return;
+      }
+
+      await fetch(`${BACKEND_URL}/messages/send`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          sender: username,
+          receiver: currentFriend,
+          gifUrl: gif.url
+        })
+      });
+
+      results.innerHTML = "";
+      loadMessages();
+    };
+
+    results.appendChild(img);
+  });
+}
+
+loadFriends();
+setInterval(loadMessages, 3000);
+</script>
+</body>
+</html>
