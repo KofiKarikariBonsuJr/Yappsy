@@ -6,11 +6,13 @@
   <title>Yappsy | Login</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <header class="navbar">
     <div class="logo">Yappsy</div>
     <nav>
       <a href="home.html">Home</a>
+      <a href="chat.html">Chat</a>
       <a href="login.html">Login</a>
       <a href="register.html">Register</a>
     </nav>
@@ -21,54 +23,165 @@
       <h1>Log In</h1>
       <p>Welcome back to Yappsy.</p>
 
+      <form id="loginForm">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          placeholder="Enter your email" 
+          required 
+        />
+
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          placeholder="Enter your password" 
+          required 
+        />
+
+        <button type="submit" class="btn primary full">Log In</button>
+      </form>
+
+      <div id="mfaBox" style="display: none; margin-top: 20px;">
+        <h3>Enter MFA Code</h3>
+        <p>Check the backend terminal for your MFA code.</p>
+
+        <label for="mfaCode">MFA Code</label>
+        <input 
+          type="text" 
+          id="mfaCode" 
+          placeholder="Enter code" 
+        />
+
+        <button type="button" class="btn primary full" id="verifyMfaButton">
+          Verify
+        </button>
+      </div>
+
+      <p id="message"></p>
+
       <p class="form-footer">
         Don’t have an account?
-<form id="loginForm">
-  <label for="email">Email</label>
-  <input type="email" id="email" placeholder="Enter your email" />
-
-  <label for="password">Password</label>
-  <input type="password" id="password" placeholder="Enter your password" />
-
-  <button type="submit" class="btn primary full">Log In</button>
-</form>
-
-<p id="message"></p>
-
-<script>
-document.getElementById("loginForm").addEventListener("submit", async function(event) {
-  event.preventDefault();
-
-  const data = {
-    email: document.getElementById("email").value.trim(),
-    password: document.getElementById("password").value
-  };
-
-  const message = document.getElementById("message");
-
-  try {
-    const response = await fetch("http://192.168.48.131:3000/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    });
-
-    const result = await response.json();
-    message.textContent = result.message;
-
-    if (response.ok) {
-      localStorage.setItem("username", result.username);
-      window.location.href = "home.html";
-    }
-  } catch (error) {
-    message.textContent = "Could not connect to backend.";
-  }
-});
-</script>        <a href="register.html">Register here</a>
+        <a href="register.html">Register here</a>
       </p>
     </div>
   </main>
+
+  <script>
+    const BACKEND_URL = "http://192.168.48.131:3000";
+    let pendingEmail = "";
+
+    // Clear bad old login value if it exists
+    if (localStorage.getItem("username") === "undefined") {
+      localStorage.removeItem("username");
+    }
+
+    const loginForm = document.getElementById("loginForm");
+    const mfaBox = document.getElementById("mfaBox");
+    const message = document.getElementById("message");
+    const verifyMfaButton = document.getElementById("verifyMfaButton");
+
+    loginForm.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      const data = {
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value
+      };
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        console.log("Login result:", result);
+
+        message.textContent = result.message;
+
+        // Correct MFA path
+        if (response.ok && result.mfaRequired === true) {
+          pendingEmail = result.email;
+
+          loginForm.style.display = "none";
+          mfaBox.style.display = "block";
+
+          return;
+        }
+
+        // Only log in directly if backend actually sends a username
+        // This is just a fallback, not the normal MFA flow.
+        if (response.ok && result.username) {
+          localStorage.setItem("username", result.username);
+          window.location.href = "home.html";
+          return;
+        }
+
+        // If response is OK but neither MFA nor username came back
+        if (response.ok) {
+          message.textContent = "Login response was missing MFA or username data.";
+          console.error("Unexpected login response:", result);
+        }
+
+      } catch (error) {
+        console.error("Login error:", error);
+        message.textContent = "Could not connect to backend.";
+      }
+    });
+
+    verifyMfaButton.addEventListener("click", verifyMfa);
+
+    async function verifyMfa() {
+      const code = document.getElementById("mfaCode").value.trim();
+
+      if (!code) {
+        message.textContent = "Please enter the MFA code.";
+        return;
+      }
+
+      if (!pendingEmail) {
+        message.textContent = "No pending MFA email found. Please log in again.";
+        return;
+      }
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/verify-mfa`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: pendingEmail,
+            code: code
+          })
+        });
+
+        const result = await response.json();
+        console.log("MFA result:", result);
+
+        message.textContent = result.message;
+
+        if (response.ok && result.username) {
+          localStorage.setItem("username", result.username);
+          window.location.href = "home.html";
+          return;
+        }
+
+        if (response.ok && !result.username) {
+          message.textContent = "MFA passed, but backend did not return a username.";
+          console.error("Unexpected MFA response:", result);
+        }
+
+      } catch (error) {
+        console.error("MFA error:", error);
+        message.textContent = "Could not verify MFA code.";
+      }
+    }
+  </script>
 </body>
 </html>
