@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yappsy | Home</title>
   <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <header class="navbar">
-    <div class="logo">Yappsy</div>
-    <nav>
-      <a href="home.html">Home</a>
-      <a href="login.html">Login</a>
-      <a href="register.html">Register</a>
-    </nav>
-  </header>
+<header class="navbar">
+  <div class="logo">Yappsy</div>
+
+  <nav id="navbarLinks">
+    <a href="home.html">Home</a>
+    <a id="authLink" href="login.html">Login</a>
+    <a href="register.html">Register</a>
+  </nav>
+</header>
 
   <main class="hero">
     <section class="hero-text">
@@ -23,18 +22,49 @@
 
 <script>
 const username = localStorage.getItem("username");
+
+const welcomeUser = document.getElementById("welcomeUser");
+const authLink = document.getElementById("authLink");
+
 if (username) {
-  document.getElementById("welcomeUser").textContent = `Logged in as ${username}`;
+  // Show logged in user
+  welcomeUser.textContent = `Logged in as ${username}`;
+
+  // Turn Login into Logout
+  authLink.textContent = "Logout";
+  authLink.href = "#";
+
+  authLink.addEventListener("click", function (event) {
+    event.preventDefault();
+
+    // Remove saved login info
+    localStorage.removeItem("username");
+
+    // Redirect back to login page
+    window.location.href = "login.html";
+  });
 }
-</script>    
+const heroButtons = document.getElementById("heroButtons");
+
+if (username) {
+  heroButtons.innerHTML = `
+    <button class="btn secondary" id="logoutButton">Log Out</button>
+  `;
+
+  document.getElementById("logoutButton").addEventListener("click", function () {
+    localStorage.removeItem("username");
+    window.location.href = "login.html";
+  });
+}
+</script> 
   <p>
         Chat with friends, discover new people, and express yourself with GIFs.
         Yappsy is your all-in-one messaging app.
       </p>
-      <div class="hero-buttons">
-        <a class="btn primary" href="register.html">Get Started</a>
-        <a class="btn secondary" href="login.html">Log In</a>
-      </div>
+      <div class="hero-buttons" id="heroButtons">
+ 	 <a class="btn primary" href="register.html">Get Started</a>
+ 	 <a class="btn secondary" href="login.html">Log In</a>
+	</div>
     </section>
 
     <section class="hero-card">
